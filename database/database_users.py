@@ -1,6 +1,7 @@
 from abc import ABC
 
-from database.database import Databasefrom abc import ABC
+from database.database import Database
+from abc import ABC
 
 
 class DatabaseUsers(ABC):
