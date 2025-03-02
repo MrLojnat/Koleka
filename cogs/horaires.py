@@ -58,18 +58,14 @@ async def station_autocomplete(interaction: discord.Interaction, current: str) -
     :param current: Champ que l'utilisateur est en train de saisir
     :return: Liste de choix possibles correspondant à ce que l'utilisateur a entré
     """
-    print(interaction.data)
     network_name: str = interaction.data['options'][0]['options'][0]['value']
     network: Network = Networks.network(network_name)
-
-    stations_names: list[str] = []
-    stations: list[str] = []
 
     if len(current) == 0:
         stations = DatabaseUsers().get_favoris(interaction.user.id, network.name)
         stations_names = [network.get_stop_name(i).title() for i in stations]
         stations = ["id:" + i for i in stations]
-    elif len(stations) == 0:
+    else:
         stations = network.get_stations(current)
         stations_names = [f"{stop[1].title()}, {stop[2]}" if len(stop) > 14 else stop[1].title() for stop in stations]
         stations = ["id:" + i[0] for i in stations]
@@ -144,7 +140,6 @@ class Horaires(commands.Cog):
             return
 
         # Si l'utilisateur a fourni une ligne spécifique, on cherche le numéro de page correspondant à cette ligne
-
         num_page = station.get_line_index(network.get_lines(line)[0]) if line else 0
 
         vue = Boutons(interaction, network, station, num_page)
@@ -199,8 +194,8 @@ class Horaires(commands.Cog):
         network: Network = Networks.network(network_name.value)
 
         favoris = DatabaseUsers().get_favoris(interaction.user.id, network_name.value)
-        favoris = [f' • {network.get_stop_name(i).title()} \n' for i in favoris]
-        await interaction.edit_original_response(embed=embed_ratp(''.join(favoris)))
+        message = ''.join([f' • {network.get_stop_name(i).title()} \n' for i in favoris]) if favoris else "Aucun favori"
+        await interaction.edit_original_response(embed=embed_ratp(message))
 
 
 class Boutons(ABC, discord.ui.View):

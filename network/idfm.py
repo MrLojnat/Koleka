@@ -49,41 +49,42 @@ class IDFM(Network):
     def create_station(self, station_id: str) -> Station:
         station: Station = Station(station_id, self.get_stop_name(station_id))
 
-        station.lignes = SortedSet(key=lambda ligne: ligne.id)
+        station.lines = SortedSet(key=lambda ligne: ligne.id)
         params = {'MonitoringRef': self.to_stif(station.id)}
 
         try:
             json = requests.get(URL, headers=HEADERS, params=params).json()
+            json = json['Siri']['ServiceDelivery']['StopMonitoringDelivery'][0]['MonitoredStopVisit']
         except Exception as e:
             print(e)
             raise
 
-        json = json['Siri']['ServiceDelivery']['StopMonitoringDelivery'][0]['MonitoredStopVisit']
+        for entry in json:
+            stop_id: str = entry['MonitoringRef']['value']
+            journey: dict = entry['MonitoredVehicleJourney']
+            line_id: str = journey['LineRef']['value']
+            line: Line = station.get_line(line_id)
 
-        for entree in json:
-            id_arret = entree['MonitoringRef']['value']
-            id_ligne = str(entree['MonitoredVehicleJourney']['LineRef']['value'])
+            if not line:
+                line = Line(line_id, self.get_line_name(line_id), self.get_color(line_id))
+                station.add_line(line)
 
-            line: Line = Line(id_ligne, self.get_line_name(id_ligne), self.get_color(id_ligne))
-            line = station.get_line() if station.get_line(id_ligne) else station.add_line(line)
+            line.add_stop(stop_id, self.get_stop_name(stop_id))
 
-            line.add_stop(id_arret, self.get_stop_name(id_arret))
+            wait_time = journey['MonitoredCall'].get('ExpectedDepartureTime', '2022-01-01T00:00:00.000Z')
+            wait_time = journey['MonitoredCall'].get('ExpectedArrivalTime', wait_time)
+            wait_time = datetime.strptime(wait_time, '%Y-%m-%dT%H:%M:%S.%fZ')
+            wait_time = round((wait_time - datetime.now()).total_seconds() / 60.0)
 
-            attente_depart = entree['MonitoredVehicleJourney']['MonitoredCall'].get(
-                    'ExpectedDepartureTime', '2022-01-01T00:00:00.000Z')
-            attente_arrivee = entree['MonitoredVehicleJourney']['MonitoredCall'].get(
-                    'ExpectedArrivalTime', attente_depart)
-            attente = datetime.strptime(attente_arrivee, '%Y-%m-%dT%H:%M:%S.%fZ')
-            attente = round((attente - datetime.now()).total_seconds() / 60.0)
-
-            destination = entree['MonitoredVehicleJourney']['MonitoredCall'].get('DestinationDisplay')
-            destination = entree['MonitoredVehicleJourney'].get('DestinationName', destination)
+            destination = journey['MonitoredCall'].get('DestinationDisplay')
+            destination = journey.get('DestinationName', destination)
+            destination = journey.get('DirectionName', destination)
             destination = destination[0]['value']
 
-            if entree['MonitoredVehicleJourney']['JourneyNote'] and entree['MonitoredVehicleJourney']['JourneyNote'][0]['value'] != "":
-                destination = f"{entree['MonitoredVehicleJourney']['JourneyNote'][0]['value']} | {destination}"
+            if journey['JourneyNote'] and journey['JourneyNote'][0]['value'] != "":
+                destination = f"{journey['JourneyNote'][0]['value']} | {destination}"
 
-            if attente >= 0:
-                line.get_stop(id_arret).add_timetable_record(destination, attente)
+            if wait_time >= 0:
+                line.get_stop(stop_id).add_timetable_record(destination, wait_time)
 
         return station

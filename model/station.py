@@ -51,7 +51,7 @@ class Station:
         self.__lines.add(line)
         return line
 
-    def get_line_index(self, line_id: str):
+    def get_line_index(self, line_id: str) -> int:
         """Donne l'indice dans la liste en correspondance avec son nom"""
         try:
             id_lignes_arret = [x.id for x in self.__lines]
@@ -61,30 +61,30 @@ class Station:
 
     def get_station_embed(self, num_page: int = 0) -> discord.Embed:
         """Fournit un embed montrant le temps d'attente pour un arrêt et une station donnée"""
-        ligne = self.get_line(num_page)
+        line: Line = self.get_line(num_page)
 
-        embed = discord.Embed(title=f"{ligne.name} | **Horaires**", color=ligne.color)
+        embed = discord.Embed(title=f"{line.name} | **Horaires**", color=line.color)
         embed.set_footer(text=f"Page {num_page + 1}/{len(self.__lines)}")
 
-        for arret in ligne.stops:
-            if f"**{arret.name or self.name}**" not in [x.value for x in embed.fields]:
-                embed.add_field(name="‎", value=f"**{arret.name}**", inline=False)
+        for stop in line.stops:
+            if f"**{stop.name or self.name}**" not in [x.value for x in embed.fields]:
+                embed.add_field(name="‎", value=f"**{stop.name}**", inline=False)
 
-            horaires = arret.timetable.items()
-            horaires_inline = True if (len(horaires) < 2) else False
+            horaires = stop.timetable.items()
+            horaires_inline = len(horaires) < 2
 
-            for destination, temps in horaires:
-                temps = [i for i in temps[:3] if i <= 60]
-                if not temps:
+            for destination, wait_time in horaires:
+                wait_time = [i for i in wait_time[:3] if i <= 60]
+                if not wait_time:
                     continue
-                elif f"**{arret.name}**" not in [x.value for x in embed.fields]:
+                elif f"**{stop.name}**" not in [x.value for x in embed.fields]:
                     embed.add_field(name=f"→ {destination}",
-                                    value=" min, ".join(map(str, temps)) + " min",
+                                    value=" min, ".join(map(str, wait_time)) + " min",
                                     inline=horaires_inline)
                 else:
-                    embed.insert_field_at([x.value for x in embed.fields].index(f"**{arret.name}**") + 1,
+                    embed.insert_field_at([x.value for x in embed.fields].index(f"**{stop.name}**") + 1,
                                           name=f"→ {destination}",
-                                          value=" min, ".join(map(str, temps)) + " min",
+                                          value=" min, ".join(map(str, wait_time)) + " min",
                                           inline=horaires_inline)
 
         if len(embed.fields) < 2:

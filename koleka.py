@@ -17,7 +17,8 @@ async def on_ready():
 
     # Chargement des cogs
     for file in os.listdir('./cogs'):
-        await bot.load_extension(f'cogs.{file[:-3]}')
+        if file.endswith('.py'):
+            await bot.load_extension(f'cogs.{file[:-3]}')
 
 
 bot.run(os.getenv('DISCORD_TOKEN'))
